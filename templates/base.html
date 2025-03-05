@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Banka İşlemleri</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <style>
+        /* Menü başlıkları için özel stiller */
+        .navbar {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%) !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 1rem 0;
+        }
+        
+        .navbar-brand {
+            color: #fff !important;
+            font-weight: bold;
+            font-size: 1.4rem;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+        }
+        
+        .navbar-brand i {
+            font-size: 1.8rem;
+            margin-right: 0.5rem;
+        }
+        
+        .nav-item {
+            text-align: center;
+            margin: 0 0.3rem;
+        }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.9) !important;
+            font-weight: 500;
+            padding: 0.7rem 1rem !important;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .nav-link i {
+            font-size: 1.2rem;
+            margin-bottom: 0.3rem;
+        }
+        
+        .nav-link:hover {
+            color: #fff !important;
+            background-color: rgba(255,255,255,0.1);
+            transform: translateY(-2px);
+        }
+        
+        .nav-link.active {
+            background-color: rgba(255,255,255,0.2);
+            color: #fff !important;
+        }
+        
+        /* Seçili firma için özel stil */
+        .firma-text {
+            color: #ffd700 !important;
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .firma-text i {
+            font-size: 1.2rem;
+            margin-bottom: 0.3rem;
+        }
+        
+        /* Kullanıcı adı için özel stil */
+        .user-profile {
+            color: #28a745 !important;
+        }
+        
+        .user-profile i {
+            color: #28a745 !important;
+        }
+        
+        /* Firma değiştir butonu için özel stil */
+        .firma-degistir {
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 0.7rem 1rem !important;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .firma-degistir:hover {
+            background-color: rgba(255,255,255,0.2);
+            transform: translateY(-2px);
+        }
+        
+        .firma-degistir i {
+            font-size: 1.2rem;
+            margin-bottom: 0.3rem;
+        }
+        
+        /* Mobil menü için özel stil */
+        .navbar-toggler {
+            border-color: rgba(255,255,255,0.5);
+        }
+        
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.7%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+        }
+
+        @media (max-width: 991.98px) {
+            .nav-link {
+                flex-direction: row;
+                justify-content: center;
+                padding: 0.5rem !important;
+            }
+            
+            .nav-link i {
+                margin-right: 0.5rem;
+                margin-bottom: 0;
+            }
+            
+            .firma-text, .firma-degistir {
+                flex-direction: row;
+                justify-content: center;
+            }
+            
+            .firma-text i, .firma-degistir i {
+                margin-right: 0.5rem;
+                margin-bottom: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'home' %}">
+                <i class="fas fa-university"></i>
+                <span>Banka İşlemleri</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'pdf_yukle' %}active{% endif %}" href="{% url 'banka_islemleri:pdf_yukle' %}">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>PDF Yükle</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'hareket_filtrele' %}active{% endif %}" href="{% url 'banka_islemleri:hareket_filtrele' %}">
+                            <i class="fas fa-list"></i>
+                            <span>Hareketler</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'muhasebe_tanimlari' %}active{% endif %}" href="{% url 'banka_islemleri:muhasebe_tanimlari' %}">
+                            <i class="fas fa-book"></i>
+                            <span>Muhasebe</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'muhasebe_kodlari_aktar' %}active{% endif %}" href="{% url 'banka_islemleri:muhasebe_kodlari_aktar' %}">
+                            <i class="fas fa-code"></i>
+                            <span>Kodlar</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'banka_listesi' %}active{% endif %}" href="{% url 'banka_islemleri:banka_listesi' %}">
+                            <i class="fas fa-university"></i>
+                            <span>Bankalar</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.resolver_match.url_name == 'firma_listesi' %}active{% endif %}" href="{% url 'banka_islemleri:firma_listesi' %}">
+                            <i class="fas fa-building"></i>
+                            <span>Firmalar</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">
+                            <i class="fas fa-file-pdf"></i>
+                            <span>PDF Yükle</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">
+                            <i class="fas fa-list"></i>
+                            <span>Hareketler</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">
+                            <i class="fas fa-book"></i>
+                            <span>Muhasebe</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">
+                            <i class="fas fa-code"></i>
+                            <span>Kodlar</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">
+                            <i class="fas fa-university"></i>
+                            <span>Bankalar</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">
+                            <i class="fas fa-building"></i>
+                            <span>Firmalar</span>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link user-profile" href="{% url 'users:profile' %}">
+                                <i class="fas fa-user-circle"></i>
+                                <span>{{ user.username }}</span>
+                            </a>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'users:login' %}">
+                                <i class="fas fa-sign-in-alt"></i>
+                                <span>Giriş</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'users:register' %}">
+                                <i class="fas fa-user-plus"></i>
+                                <span>Kayıt Ol</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% if user.is_authenticated and request.session.secili_firma_id %}
+                        <li class="nav-item">
+                            <span class="nav-link firma-text">
+                                <i class="fas fa-building"></i>
+                                <span>{{ secili_firma.ad }}</span>
+                            </span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link firma-degistir" href="{% url 'banka_islemleri:firma_sec' %}">
+                                <i class="fas fa-exchange-alt"></i>
+                                <span>Firma Değiştir</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <form method="post" action="{% url 'users:logout' %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="nav-link border-0 bg-transparent">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                    <span>Çıkış</span>
+                                </button>
+                            </form>
+                        </li>
+                    {% elif user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link firma-degistir" href="{% url 'banka_islemleri:firma_sec' %}">
+                                <i class="fas fa-plus-circle"></i>
+                                <span>Firma Seç</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <form method="post" action="{% url 'users:logout' %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="nav-link border-0 bg-transparent">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                    <span>Çıkış</span>
+                                </button>
+                            </form>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    {% block content %}
+    {% endblock %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

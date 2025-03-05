@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-3">
+        <div class="col">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Vakıfbank PDF Önizleme</h5>
+                </div>
+                <div class="card-body">
+                    <form id="pdfForm" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="pdfDosya" class="form-label">PDF Dosyası Seçin</label>
+                            <input type="file" class="form-control" id="pdfDosya" name="pdf_dosya" accept=".pdf" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-eye"></i> Önizle
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Önizleme Sonuçları -->
+    <div id="sonuclar" style="display: none;">
+        <div class="row mb-3">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Özet Bilgiler</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="border rounded p-2 text-center">
+                                    <h6>Hareket Sayısı</h6>
+                                    <span id="hareketSayisi" class="h4">0</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded p-2 text-center">
+                                    <h6>Toplam Borç</h6>
+                                    <span id="toplamBorc" class="h4 text-success">0,00 ₺</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded p-2 text-center">
+                                    <h6>Toplam Alacak</h6>
+                                    <span id="toplamAlacak" class="h4 text-danger">0,00 ₺</span>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded p-2 text-center">
+                                    <h6>Bakiye</h6>
+                                    <span id="bakiye" class="h4">0,00 ₺</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">Hareketler</h5>
+                        <div>
+                            <button class="btn btn-danger me-2" onclick="seciliHareketleriSil()" id="silButton" disabled>
+                                <i class="bi bi-trash"></i> Seçilenleri Sil
+                            </button>
+                            <button class="btn btn-success" onclick="hareketleriAktar()">
+                                <i class="bi bi-check-lg"></i> Hareketleri Aktar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            <input type="checkbox" class="form-check-input" id="tumunuSec" 
+                                                onclick="tumunuSecToggle(this)">
+                                        </th>
+                                        <th>Tarih</th>
+                                        <th>Açıklama</th>
+                                        <th class="text-end">Borç</th>
+                                        <th class="text-end">Alacak</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="hareketlerTbody">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let hareketlerData = []; // Tüm hareketleri saklayacak array
+
+document.getElementById('pdfForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('/banka/vakifbank-pdf-onizle/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Hareketleri global değişkende sakla
+            hareketlerData = data.hareketler;
+            
+            // Özet bilgileri güncelle
+            document.getElementById('hareketSayisi').textContent = data.ozet.hareket_sayisi;
+            document.getElementById('toplamBorc').textContent = formatPara(data.ozet.toplam_borc);
+            document.getElementById('toplamAlacak').textContent = formatPara(data.ozet.toplam_alacak);
+            document.getElementById('bakiye').textContent = formatPara(data.ozet.bakiye);
+            
+            // Hareketleri tabloya ekle
+            const tbody = document.getElementById('hareketlerTbody');
+            tbody.innerHTML = '';
+            
+            hareketlerData.forEach((hareket, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <input type="checkbox" class="form-check-input hareket-checkbox" 
+                            data-index="${index}" onclick="checkboxChanged()">
+                    </td>
+                    <td>${hareket.tarih}</td>
+                    <td>${hareket.aciklama}</td>
+                    <td class="text-end">${formatPara(hareket.borc)}</td>
+                    <td class="text-end">${formatPara(hareket.alacak)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            // Sonuçları göster
+            document.getElementById('sonuclar').style.display = 'block';
+            // Tümünü seç checkbox'ını sıfırla
+            document.getElementById('tumunuSec').checked = false;
+            // Sil butonunu devre dışı bırak
+            document.getElementById('silButton').disabled = true;
+        } else {
+            alert('Hata: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Hata:', error);
+        alert('İşlem sırasında bir hata oluştu');
+    });
+});
+
+function formatPara(tutar) {
+    return new Intl.NumberFormat('tr-TR', {
+        style: 'currency',
+        currency: 'TRY'
+    }).format(tutar);
+}
+
+function hareketleriAktar() {
+    // Burada hareketleri sisteme aktarma işlemi yapılacak
+    alert('Hareketler başarıyla aktarıldı!');
+}
+
+function tumunuSecToggle(checkbox) {
+    const checkboxes = document.getElementsByClassName('hareket-checkbox');
+    Array.from(checkboxes).forEach(cb => {
+        cb.checked = checkbox.checked;
+    });
+    checkboxChanged();
+}
+
+function checkboxChanged() {
+    const checkboxes = document.getElementsByClassName('hareket-checkbox');
+    const seciliSayisi = Array.from(checkboxes).filter(cb => cb.checked).length;
+    
+    // Sil butonunu güncelle
+    document.getElementById('silButton').disabled = seciliSayisi === 0;
+    
+    // Tümünü seç checkbox'ını güncelle
+    const tumunuSecCheckbox = document.getElementById('tumunuSec');
+    tumunuSecCheckbox.checked = seciliSayisi === checkboxes.length;
+    tumunuSecCheckbox.indeterminate = seciliSayisi > 0 && seciliSayisi < checkboxes.length;
+}
+
+function seciliHareketleriSil() {
+    const checkboxes = document.getElementsByClassName('hareket-checkbox');
+    const seciliIndexler = Array.from(checkboxes)
+        .filter(cb => cb.checked)
+        .map(cb => parseInt(cb.dataset.index))
+        .sort((a, b) => b - a); // Büyükten küçüğe sırala
+    
+    // Seçili hareketleri sil
+    seciliIndexler.forEach(index => {
+        hareketlerData.splice(index, 1);
+    });
+    
+    // Özet bilgileri güncelle
+    const toplamBorc = hareketlerData.reduce((sum, h) => sum + h.borc, 0);
+    const toplamAlacak = hareketlerData.reduce((sum, h) => sum + h.alacak, 0);
+    const bakiye = toplamBorc - toplamAlacak;
+    
+    document.getElementById('hareketSayisi').textContent = hareketlerData.length;
+    document.getElementById('toplamBorc').textContent = formatPara(toplamBorc);
+    document.getElementById('toplamAlacak').textContent = formatPara(toplamAlacak);
+    document.getElementById('bakiye').textContent = formatPara(bakiye);
+    
+    // Tabloyu güncelle
+    const tbody = document.getElementById('hareketlerTbody');
+    tbody.innerHTML = '';
+    
+    hareketlerData.forEach((hareket, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>
+                <input type="checkbox" class="form-check-input hareket-checkbox" 
+                    data-index="${index}" onclick="checkboxChanged()">
+            </td>
+            <td>${hareket.tarih}</td>
+            <td>${hareket.aciklama}</td>
+            <td class="text-end">${formatPara(hareket.borc)}</td>
+            <td class="text-end">${formatPara(hareket.alacak)}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+    
+    // Tümünü seç checkbox'ını ve sil butonunu sıfırla
+    document.getElementById('tumunuSec').checked = false;
+    document.getElementById('silButton').disabled = true;
+}
+</script>
+{% endblock %} 

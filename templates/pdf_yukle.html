@@ -1,0 +1,327 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    {% csrf_token %}
+    <div class="row">
+        <div class="col-12">
+            <h2>PDF Banka Ekstresi Yükle</h2>
+            
+            <div id="message" class="alert" style="display: none;"></div>
+            
+            <form method="POST" enctype="multipart/form-data" id="uploadForm" action="{% url 'banka_islemleri:pdf_yukle' %}">
+                {% csrf_token %}
+                <div class="form-group mb-3">
+                    <label for="banka" class="form-label">Banka Seçin</label>
+                    <div class="input-group">
+                        <select name="banka_id" id="banka" class="form-select" required>
+                            <option value="">Banka seçin...</option>
+                            {% for banka in bankalar %}
+                            <option value="{{ banka.id }}">{{ banka.ad }} - {{ banka.sube }} ({{ banka.hesap_no }})</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-success" onclick="yeniBankaModalAc()">
+                            <i class="bi bi-plus-lg"></i> Yeni Banka
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-group mb-3">
+                    <label for="pdf_dosya" class="form-label">PDF Dosyası</label>
+                    <input type="file" 
+                           name="pdf_dosya" 
+                           id="pdf_dosya" 
+                           class="form-control" 
+                           accept=".pdf" 
+                           required>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Yükle</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Yeni Banka Modal -->
+<div class="modal fade" id="yeniBankaModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Yeni Banka Ekle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="bankaForm">
+                    <div class="mb-3">
+                        <label for="bankaAd" class="form-label">Banka Adı</label>
+                        <input type="text" class="form-control" id="bankaAd" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="bankaSube" class="form-label">Şube</label>
+                        <input type="text" class="form-control" id="bankaSube">
+                    </div>
+                    <div class="mb-3">
+                        <label for="hesapNo" class="form-label">Hesap No</label>
+                        <input type="text" class="form-control" id="hesapNo">
+                    </div>
+                    <div class="mb-3">
+                        <label for="iban" class="form-label">IBAN</label>
+                        <input type="text" class="form-control" id="iban">
+                    </div>
+                    <div class="mb-3">
+                        <label for="muhasebeKodu" class="form-label">Muhasebe Kodu</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="muhasebeKodu" readonly>
+                            <button class="btn btn-outline-secondary" type="button" onclick="muhasebeKoduModalAc()">
+                                <i class="bi bi-search"></i> Kod Seç
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="aciklama" class="form-label">Açıklama</label>
+                        <textarea class="form-control" id="aciklama" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-primary" onclick="bankaKaydet()">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Muhasebe Kodu Seçim Modal -->
+<div class="modal fade" id="muhasebeKoduModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Muhasebe Kodu Seç</h5>
+                <button class="btn btn-success me-2" onclick="yeniKodModalAc()">
+                    <i class="bi bi-plus-lg"></i> Yeni Kod Ekle
+                </button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Arama -->
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="kodArama" 
+                           placeholder="Muhasebe kodu veya açıklama ara..."
+                           onkeyup="muhasebeKoduAra(this.value)">
+                </div>
+                
+                <!-- Muhasebe Kodları Listesi -->
+                <div class="list-group" id="muhasebeKodlariListesi">
+                    {% for kod in muhasebe_plani %}
+                    <button type="button" class="list-group-item list-group-item-action"
+                            onclick="muhasebeKoduSec('{{ kod.muhasebe_kodu }}', '{{ kod.aciklama }}')">
+                        <strong>{{ kod.muhasebe_kodu }}</strong> - {{ kod.aciklama }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Yeni Muhasebe Kodu Modal -->
+<div class="modal fade" id="yeniKodModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Yeni Muhasebe Kodu Ekle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="yeniKodForm">
+                    <div class="mb-3">
+                        <label for="yeniKod" class="form-label">Muhasebe Kodu</label>
+                        <input type="text" class="form-control" id="yeniKod" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="yeniKodAciklama" class="form-label">Açıklama</label>
+                        <input type="text" class="form-control" id="yeniKodAciklama" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-primary" onclick="yeniKodKaydet()">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let bankaModal = null;
+let muhasebeKoduModal = null;
+let yeniKodModal = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    bankaModal = new bootstrap.Modal(document.getElementById('yeniBankaModal'));
+    muhasebeKoduModal = new bootstrap.Modal(document.getElementById('muhasebeKoduModal'));
+    yeniKodModal = new bootstrap.Modal(document.getElementById('yeniKodModal'));
+});
+
+function yeniBankaModalAc() {
+    document.getElementById('bankaForm').reset();
+    bankaModal.show();
+}
+
+function bankaKaydet() {
+    const data = {
+        ad: document.getElementById('bankaAd').value.trim(),
+        sube: document.getElementById('bankaSube').value.trim(),
+        hesap_no: document.getElementById('hesapNo').value.trim(),
+        iban: document.getElementById('iban').value.trim(),
+        muhasebe_kodu: document.getElementById('muhasebeKodu').value.trim(),
+        aciklama: document.getElementById('aciklama').value.trim()
+    };
+
+    if (!data.ad) {
+        alert('Lütfen banka adını giriniz');
+        return;
+    }
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    fetch('{% url "banka_islemleri:banka_ekle" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            const select = document.getElementById('banka');
+            const option = new Option(data.banka_text, data.banka_id);
+            select.add(option);
+            select.value = data.banka_id;
+
+            bankaModal.hide();
+
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = 'alert alert-success';
+            messageDiv.textContent = 'Banka başarıyla eklendi';
+            messageDiv.style.display = 'block';
+        } else {
+            alert('Hata: ' + (data.error || 'Bilinmeyen bir hata oluştu'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('İşlem sırasında bir hata oluştu: ' + error.message);
+    });
+}
+
+function muhasebeKoduModalAc() {
+    muhasebeKoduModal.show();
+}
+
+function muhasebeKoduSec(kod, aciklama) {
+    document.getElementById('muhasebeKodu').value = kod;
+    muhasebeKoduModal.hide();
+}
+
+function muhasebeKoduAra(aranan) {
+    aranan = aranan.toLowerCase();
+    const liste = document.getElementById('muhasebeKodlariListesi');
+    const elemanlar = liste.getElementsByTagName('button');
+    
+    for (let eleman of elemanlar) {
+        const icerik = eleman.textContent.toLowerCase();
+        if (icerik.includes(aranan)) {
+            eleman.style.display = '';
+        } else {
+            eleman.style.display = 'none';
+        }
+    }
+}
+
+function yeniKodModalAc() {
+    document.getElementById('yeniKodForm').reset();
+    yeniKodModal.show();
+}
+
+function yeniKodKaydet() {
+    const data = {
+        muhasebe_kodu: document.getElementById('yeniKod').value.trim(),
+        aciklama: document.getElementById('yeniKodAciklama').value.trim()
+    };
+
+    if (!data.muhasebe_kodu || !data.aciklama) {
+        alert('Lütfen tüm alanları doldurunuz');
+        return;
+    }
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    fetch('/banka/muhasebe-kodu-ekle/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Yeni kodu listeye ekle
+            const liste = document.getElementById('muhasebeKodlariListesi');
+            const yeniButton = document.createElement('button');
+            yeniButton.className = 'list-group-item list-group-item-action';
+            yeniButton.onclick = () => muhasebeKoduSec(data.muhasebe_kodu, data.aciklama);
+            yeniButton.innerHTML = `<strong>${data.muhasebe_kodu}</strong> - ${data.aciklama}`;
+            liste.insertBefore(yeniButton, liste.firstChild);
+
+            // Modalı kapat
+            yeniKodModal.hide();
+        } else {
+            alert('Hata: ' + (data.error || 'Bilinmeyen bir hata oluştu'));
+        }
+    });
+}
+
+document.getElementById('uploadForm').onsubmit = function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        const messageDiv = document.getElementById('message');
+        messageDiv.style.display = 'block';
+        
+        if (data.error) {
+            messageDiv.className = 'alert alert-danger';
+            messageDiv.textContent = 'Hata: ' + data.error;
+        } else {
+            messageDiv.className = 'alert alert-success';
+            messageDiv.textContent = data.message;
+            setTimeout(() => {
+                window.location.href = data.redirect_url || "{% url 'banka_islemleri:hareket_filtrele' %}";
+            }, 2000);
+        }
+    })
+    .catch(error => {
+        const messageDiv = document.getElementById('message');
+        messageDiv.style.display = 'block';
+        messageDiv.className = 'alert alert-danger';
+        messageDiv.textContent = 'Bir hata oluştu: ' + error;
+    });
+};
+</script>
+{% endblock %} 

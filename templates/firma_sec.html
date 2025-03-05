@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Firma Seçin</h5>
+                    <a href="{% url 'banka_islemleri:firma_ekle' %}" class="btn btn-sm btn-success">
+                        Yeni Firma Ekle
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if firmalar %}
+                    <form method="POST">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <select name="firma_id" class="form-select" required>
+                                <option value="">Firma seçin...</option>
+                                {% for firma in firmalar %}
+                                <option value="{{ firma.id }}">{{ firma.ad }} ({{ firma.vergi_no }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Seç</button>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        Henüz kayıtlı firma bulunmamaktadır. Lütfen önce bir firma ekleyin.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

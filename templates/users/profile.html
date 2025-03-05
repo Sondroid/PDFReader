@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center">Profil Bilgileri</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Kullanıcı Adı</h5>
+                            <p>{{ user.username }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>E-posta</h5>
+                            <p>{{ user.email }}</p>
+                        </div>
+                    </div>
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <h5>Son Giriş</h5>
+                            <p>{{ user.last_login|date:"d.m.Y H:i" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Kayıt Tarihi</h5>
+                            <p>{{ user.date_joined|date:"d.m.Y H:i" }}</p>
+                        </div>
+                    </div>
+                    <div class="text-center mt-4">
+                        <form method="post" action="{% url 'users:logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger">Çıkış Yap</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

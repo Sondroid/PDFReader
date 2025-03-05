@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    {% csrf_token %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Firmalar</h5>
+                    <button class="btn btn-success" onclick="yeniFirmaModalAc()">
+                        <i class="bi bi-plus-lg"></i> Yeni Firma Ekle
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Firma Adı</th>
+                                    <th>Vergi No</th>
+                                    <th>Durum</th>
+                                    <th>Kayıt Tarihi</th>
+                                    <th>İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for firma in firmalar %}
+                                <tr data-id="{{ firma.id }}">
+                                    <td>{{ firma.ad }}</td>
+                                    <td>{{ firma.vergi_no }}</td>
+                                    <td>
+                                        <span class="badge {% if firma.aktif %}bg-success{% else %}bg-danger{% endif %}">
+                                            {{ firma.aktif|yesno:"Aktif,Pasif" }}
+                                        </span>
+                                    </td>
+                                    <td>{{ firma.created_at|date:"d.m.Y H:i" }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary" onclick="firmaDuzenle({{ firma.id }})">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-warning" onclick="firmaDurumDegistir({{ firma.id }})">
+                                            <i class="bi bi-power"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Firma Modal -->
+<div class="modal fade" id="firmaModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Firma Ekle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="firmaForm">
+                    <input type="hidden" id="firmaId">
+                    <div class="mb-3">
+                        <label for="firmaAd" class="form-label">Firma Adı</label>
+                        <input type="text" class="form-control" id="firmaAd" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="vergiNo" class="form-label">Vergi No</label>
+                        <input type="text" class="form-control" id="vergiNo" required 
+                               pattern="\d{10}" maxlength="10" 
+                               title="Vergi no 10 haneli olmalıdır">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-primary" onclick="firmaKaydet()">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let firmaModal = null;
+let isEdit = false;
+
+document.addEventListener('DOMContentLoaded', function() {
+    firmaModal = new bootstrap.Modal(document.getElementById('firmaModal'));
+});
+
+function yeniFirmaModalAc() {
+    isEdit = false;
+    document.getElementById('modalTitle').textContent = 'Yeni Firma Ekle';
+    document.getElementById('firmaForm').reset();
+    document.getElementById('firmaId').value = '';
+    firmaModal.show();
+}
+
+function firmaDuzenle(id) {
+    isEdit = true;
+    const row = document.querySelector(`tr[data-id="${id}"]`);
+    
+    document.getElementById('modalTitle').textContent = 'Firma Düzenle';
+    document.getElementById('firmaId').value = id;
+    document.getElementById('firmaAd').value = row.cells[0].textContent;
+    document.getElementById('vergiNo').value = row.cells[1].textContent;
+    
+    firmaModal.show();
+}
+
+function firmaKaydet() {
+    // Form validasyonu
+    const firmaAd = document.getElementById('firmaAd').value.trim();
+    const vergiNo = document.getElementById('vergiNo').value.trim();
+
+    if (!firmaAd) {
+        alert('Lütfen firma adını giriniz');
+        return;
+    }
+
+    if (!vergiNo || vergiNo.length !== 10 || !/^\d+$/.test(vergiNo)) {
+        alert('Lütfen geçerli bir vergi numarası giriniz (10 haneli)');
+        return;
+    }
+
+    const data = {
+        ad: firmaAd,
+        vergi_no: vergiNo
+    };
+    
+    const url = isEdit 
+        ? `/banka/firma-duzenle/${document.getElementById('firmaId').value}/`
+        : '/banka/firma-ekle/';
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert('Hata: ' + (data.error || 'Bilinmeyen bir hata oluştu'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('İşlem sırasında bir hata oluştu: ' + error.message);
+    });
+}
+
+function firmaDurumDegistir(id) {
+    if (!confirm('Firma durumunu değiştirmek istediğinizden emin misiniz?')) {
+        return;
+    }
+    
+    fetch(`/banka/firma-durum-degistir/${id}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert('Hata: ' + (data.error || 'Bilinmeyen bir hata oluştu'));
+        }
+    });
+}
+</script>
+{% endblock %} 

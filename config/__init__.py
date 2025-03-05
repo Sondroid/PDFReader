@@ -1,0 +1,1 @@
+# Bu dosya config dizininin bir Python paketi olduğunu belirtir 

@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Excel Aktarım Kartı -->
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Muhasebe Kodları Excel Aktarım</h5>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+
+                    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="excel_dosya" class="form-label">Excel Dosyası Seçin</label>
+                            <input type="file" 
+                                   name="excel_dosya" 
+                                   id="excel_dosya" 
+                                   class="form-control" 
+                                   accept=".xlsx,.xls"
+                                   required>
+                            <div class="form-text">
+                                Excel dosyanızda "muhasebe_kodu" ve "aciklama" sütunları bulunmalıdır.
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            Aktarımı Başlat
+                        </button>
+                    </form>
+
+                    <div class="mt-4">
+                        <h6>Örnek Excel Şablonu</h6>
+                        <a href="{% url 'banka_islemleri:excel_sablon_indir' %}" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-download"></i> Şablonu İndir
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Yeni Kod Ekleme Kartı -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Yeni Muhasebe Kodu Ekle</h5>
+                </div>
+                <div class="card-body">
+                    <form id="yeniKodForm">
+                        <div class="mb-3">
+                            <label for="yeniKod" class="form-label">Muhasebe Kodu</label>
+                            <input type="text" class="form-control" id="yeniKod" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="yeniAciklama" class="form-label">Açıklama</label>
+                            <input type="text" class="form-control" id="yeniAciklama" required>
+                        </div>
+                        <button type="submit" class="btn btn-success">Ekle</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Muhasebe Kodları Listesi -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Muhasebe Kodları</h5>
+                    <input type="text" 
+                           class="form-control form-control-sm w-auto" 
+                           placeholder="Ara..." 
+                           id="kodArama"
+                           onkeyup="kodlariFiltrele()">
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Muhasebe Kodu</th>
+                                    <th>Açıklama</th>
+                                    <th>İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kodlarTablosu">
+                                {% for kod in muhasebe_kodlari %}
+                                <tr data-id="{{ kod.id }}">
+                                    <td>{{ kod.muhasebe_kodu }}</td>
+                                    <td>{{ kod.aciklama }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary" onclick="kodDuzenle({{ kod.id }})">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="kodSil({{ kod.id }})">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Düzenleme Modal -->
+<div class="modal fade" id="duzenleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Muhasebe Kodu Düzenle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="duzenleForm">
+                    <input type="hidden" id="duzenleId">
+                    <div class="mb-3">
+                        <label for="duzenleKod" class="form-label">Muhasebe Kodu</label>
+                        <input type="text" class="form-control" id="duzenleKod" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="duzenleAciklama" class="form-label">Açıklama</label>
+                        <input type="text" class="form-control" id="duzenleAciklama" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                <button type="button" class="btn btn-primary" onclick="kodKaydet()">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let duzenleModal = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    duzenleModal = new bootstrap.Modal(document.getElementById('duzenleModal'));
+    
+    // Yeni kod ekleme formu
+    document.getElementById('yeniKodForm').onsubmit = function(e) {
+        e.preventDefault();
+        yeniKodEkle();
+    };
+});
+
+function kodlariFiltrele() {
+    const aranan = document.getElementById('kodArama').value.toLowerCase();
+    const satirlar = document.getElementById('kodlarTablosu').getElementsByTagName('tr');
+    
+    for (let satir of satirlar) {
+        const kod = satir.cells[0].textContent.toLowerCase();
+        const aciklama = satir.cells[1].textContent.toLowerCase();
+        
+        if (kod.includes(aranan) || aciklama.includes(aranan)) {
+            satir.style.display = '';
+        } else {
+            satir.style.display = 'none';
+        }
+    }
+}
+
+function yeniKodEkle() {
+    const kod = document.getElementById('yeniKod').value.trim();
+    const aciklama = document.getElementById('yeniAciklama').value.trim();
+    
+    fetch('/banka/muhasebe-kodu-ekle/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            muhasebe_kodu: kod,
+            aciklama: aciklama
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert('Hata: ' + (data.error || 'Bilinmeyen bir hata oluştu'));
+        }
+    });
+}
+
+function kodDuzenle(id) {
+    const satir = document.querySelector(`tr[data-id="${id}"]`);
+    const kod = satir.cells[0].textContent;
+    const aciklama = satir.cells[1].textContent;
+    
+    document.getElementById('duzenleId').value = id;
+    document.getElementById('duzenleKod').value = kod;
+    document.getElementById('duzenleAciklama').value = aciklama;
+    
+    duzenleModal.show();
+}
+
+function kodKaydet() {
+    const id = document.getElementById('duzenleId').value;
+    const kod = document.getElementById('duzenleKod').value.trim();
+    const aciklama = document.getElementById('duzenleAciklama').value.trim();
+    
+    fetch(`/banka/muhasebe-kodu-duzenle/${id}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            muhasebe_kodu: kod,
+            aciklama: aciklama
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert('Hata: ' + (data.error || 'Bilinmeyen bir hata oluştu'));
+        }
+    });
+}
+
+function kodSil(id) {
+    if (confirm('Bu muhasebe kodunu silmek istediğinizden emin misiniz?')) {
+        fetch(`/banka/muhasebe-kodu-sil/${id}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert('Hata: ' + (data.error || 'Bilinmeyen bir hata oluştu'));
+            }
+        });
+    }
+}
+</script>
+{% endblock %} 
